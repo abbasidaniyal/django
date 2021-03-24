@@ -58,8 +58,8 @@ class Extract(TimezoneMixin, Transform):
             sql = connection.ops.time_extract_sql(self.lookup_name, sql)
         else:
             # resolve_expression has already validated the output_field so this
-            # assert should never be hit.
-            assert False, "Tried to Extract from an invalid type."
+            # raise should never be hit.
+            raise TypeError('Tried to Extract from an invalid type.')
         return sql, params
 
     def resolve_expression(self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False):
@@ -212,9 +212,10 @@ class TruncBase(TimezoneMixin, Transform):
         copy = super().resolve_expression(query, allow_joins, reuse, summarize, for_save)
         field = copy.lhs.output_field
         # DateTimeField is a subclass of DateField so this works for both.
-        assert isinstance(field, (DateField, TimeField)), (
-            "%r isn't a DateField, TimeField, or DateTimeField." % field.name
-        )
+        if not isinstance(field, (DateField, TimeField)):
+            raise TypeError(
+                "%r isn't a DateField, TimeField, or DateTimeField." % field.name
+            )
         # If self.output_field was None, then accessing the field will trigger
         # the resolver to assign it to self.lhs.output_field.
         if not isinstance(copy.output_field, (DateField, DateTimeField, TimeField)):

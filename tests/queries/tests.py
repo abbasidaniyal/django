@@ -417,9 +417,9 @@ class Queries1Tests(TestCase):
     def test_heterogeneous_qs_combination(self):
         # Combining querysets built on different models should behave in a well-defined
         # fashion. We raise an error.
-        with self.assertRaisesMessage(AssertionError, 'Cannot combine queries on two different base models.'):
+        with self.assertRaisesMessage(TypeError, 'Cannot combine queries on two different base models.'):
             Author.objects.all() & Tag.objects.all()
-        with self.assertRaisesMessage(AssertionError, 'Cannot combine queries on two different base models.'):
+        with self.assertRaisesMessage(TypeError, 'Cannot combine queries on two different base models.'):
             Author.objects.all() | Tag.objects.all()
 
     def test_ticket3141(self):
@@ -1229,7 +1229,7 @@ class Queries3Tests(TestCase):
     def test_ticket8683(self):
         # An error should be raised when QuerySet.datetimes() is passed the
         # wrong type of field.
-        with self.assertRaisesMessage(AssertionError, "'name' isn't a DateField, TimeField, or DateTimeField."):
+        with self.assertRaisesMessage(TypeError, "'name' isn't a DateField, TimeField, or DateTimeField."):
             Item.objects.datetimes('name', 'month')
 
     def test_ticket22023(self):
@@ -2376,12 +2376,12 @@ class QuerySetSupportsPythonIdioms(TestCase):
 
     def test_slicing_negative_indexing_not_supported_for_single_element(self):
         """hint: inverting your ordering might do what you need"""
-        with self.assertRaisesMessage(AssertionError, "Negative indexing is not supported."):
+        with self.assertRaisesMessage(IndexError, "Negative indexing is not supported."):
             Article.objects.all()[-1]
 
     def test_slicing_negative_indexing_not_supported_for_range(self):
         """hint: inverting your ordering might do what you need"""
-        with self.assertRaisesMessage(AssertionError, "Negative indexing is not supported."):
+        with self.assertRaisesMessage(IndexError, "Negative indexing is not supported."):
             Article.objects.all()[0:-5]
 
     def test_invalid_index(self):

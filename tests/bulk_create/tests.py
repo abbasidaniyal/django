@@ -347,3 +347,13 @@ class BulkCreateTests(TestCase):
         )
         with self.assertRaisesMessage(ValueError, msg):
             NullableFields.objects.bulk_create([NullableFields(auto_field=parent)])
+
+    def test_invalid_batch_size_exception(self):
+        msg = 'batch_size should be greater than 0.'
+        with self.assertRaisesMessage(ValueError, msg):
+            Country.objects.bulk_create([
+                Country(description='a' * 4001),
+                Country(description='a'),
+                Country(description='Ж' * 2001),
+                Country(description='Ж'),
+            ], batch_size=-1)

@@ -743,8 +743,11 @@ class Model(metaclass=ModelBase):
         is used by fixture loading.
         """
         using = using or router.db_for_write(self.__class__, instance=self)
-        assert not (force_insert and (force_update or update_fields))
-        assert update_fields is None or update_fields
+        if (force_insert and (force_update or update_fields)):
+            raise ValueError("Can not force_insert and force_update at the same time.")
+        if update_fields is not None and not update_fields:
+            raise ValueError("update_fields can not be None")
+
         cls = origin = self.__class__
         # Skip proxies, but keep the origin as the proxy model.
         if cls._meta.proxy:
@@ -948,10 +951,11 @@ class Model(metaclass=ModelBase):
 
     def delete(self, using=None, keep_parents=False):
         using = using or router.db_for_write(self.__class__, instance=self)
-        assert self.pk is not None, (
-            "%s object can't be deleted because its %s attribute is set to None." %
-            (self._meta.object_name, self._meta.pk.attname)
-        )
+        if self.pk is None:
+            raise FieldError(
+                "%s object can't be deleted because its %s attribute is set to None." %
+                (self._meta.object_name, self._meta.pk.attname)
+            )
 
         collector = Collector(using=using)
         collector.collect([self], keep_parents=keep_parents)

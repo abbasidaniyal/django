@@ -147,3 +147,16 @@ class ForeignKeyTests(TestCase):
         )
         with self.assertRaisesMessage(FieldError, msg):
             Related._meta.get_field('child').related_fields
+
+    @isolate_apps('model_fields')
+    def test_invalid_to_parameter(self):
+        class Bar:
+            pass
+
+        msg = (
+            "ForeignKey(%r) is invalid. First parameter to ForeignKey must be "
+            "either a model, a model name, or the string 'self'"
+        ) % Bar
+        with self.assertRaisesMessage(TypeError, msg):
+            class Foo(models.Model):
+                bar = models.ForeignKey(Bar, models.CASCADE)

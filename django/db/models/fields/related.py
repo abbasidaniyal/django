@@ -797,13 +797,14 @@ class ForeignKey(ForeignObject):
         try:
             to._meta.model_name
         except AttributeError:
-            assert isinstance(to, str), (
-                "%s(%r) is invalid. First parameter to ForeignKey must be "
-                "either a model, a model name, or the string %r" % (
-                    self.__class__.__name__, to,
-                    RECURSIVE_RELATIONSHIP_CONSTANT,
+            if not isinstance(to, str):
+                raise TypeError(
+                    "%s(%r) is invalid. First parameter to ForeignKey must be "
+                    "either a model, a model name, or the string %r" % (
+                        self.__class__.__name__, to,
+                        RECURSIVE_RELATIONSHIP_CONSTANT,
+                    )
                 )
-            )
         else:
             # For backwards compatibility purposes, we need to *try* and set
             # the to_field during FK construction. It won't be guaranteed to
@@ -1148,19 +1149,21 @@ class ManyToManyField(RelatedField):
         try:
             to._meta
         except AttributeError:
-            assert isinstance(to, str), (
-                "%s(%r) is invalid. First parameter to ManyToManyField must be "
-                "either a model, a model name, or the string %r" %
-                (self.__class__.__name__, to, RECURSIVE_RELATIONSHIP_CONSTANT)
-            )
+            if not isinstance(to, str):
+                raise TypeError(
+                    "%s(%r) is invalid. First parameter to ManyToManyField must be "
+                    "either a model, a model name, or the string %r" %
+                    (self.__class__.__name__, to, RECURSIVE_RELATIONSHIP_CONSTANT)
+                )
 
         if symmetrical is None:
             symmetrical = (to == RECURSIVE_RELATIONSHIP_CONSTANT)
 
         if through is not None:
-            assert db_table is None, (
-                "Cannot specify a db_table if an intermediary model is used."
-            )
+            if db_table is not None:
+                raise ValueError(
+                    "Cannot specify a db_table if an intermediary model is used."
+                )
 
         kwargs['rel'] = self.rel_class(
             self, to,
@@ -1253,11 +1256,12 @@ class ManyToManyField(RelatedField):
             )
 
         else:
-            assert from_model is not None, (
-                "ManyToManyField with intermediate "
-                "tables cannot be checked if you don't pass the model "
-                "where the field is attached to."
-            )
+            if from_model is None:
+                raise ValueError(
+                    "ManyToManyField with intermediate "
+                    "tables cannot be checked if you don't pass the model "
+                    "where the field is attached to."
+                )
             # Set some useful local variables
             to_model = resolve_relation(from_model, self.remote_field.model)
             from_model_name = from_model._meta.object_name
@@ -1372,11 +1376,12 @@ class ManyToManyField(RelatedField):
             # fields on the through model, and also be foreign keys to the
             # expected models.
             else:
-                assert from_model is not None, (
-                    "ManyToManyField with intermediate "
-                    "tables cannot be checked if you don't pass the model "
-                    "where the field is attached to."
-                )
+                if from_model is None:
+                    raise ValueError(
+                        "ManyToManyField with intermediate "
+                        "tables cannot be checked if you don't pass the model "
+                        "where the field is attached to."
+                    )
 
                 source, through, target = from_model, self.remote_field.through, self.remote_field.model
                 source_field_name, target_field_name = self.remote_field.through_fields[:2]

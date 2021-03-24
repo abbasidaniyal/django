@@ -129,14 +129,14 @@ class GenericIPAddrUnpackUniqueTest(models.Model):
 
 # A model can't have multiple AutoFields
 # Refs #12467.
-assertion_error = None
+validation_error = None
 try:
     class MultipleAutoFields(models.Model):
         auto1 = models.AutoField(primary_key=True)
         auto2 = models.AutoField(primary_key=True)
-except AssertionError as exc:
-    assertion_error = exc
-assert str(assertion_error) == (
+except ValidationError as exc:
+    validation_error = exc.message
+assert str(validation_error) == (
     "Model validation.MultipleAutoFields can't have more than one "
     "auto-generated field."
 )

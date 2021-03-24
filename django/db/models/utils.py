@@ -16,7 +16,8 @@ def make_model_tuple(model):
             model_tuple = app_label, model_name.lower()
         else:
             model_tuple = model._meta.app_label, model._meta.model_name
-        assert len(model_tuple) == 2
+        if len(model_tuple) != 2:
+            raise AssertionError()
         return model_tuple
     except (ValueError, AssertionError):
         raise ValueError(

@@ -633,7 +633,7 @@ class DateFunctionTests(TestCase):
         with self.assertRaisesMessage(ValueError, msg):
             list(DTModel.objects.annotate(truncated=Trunc('start_datetime', 'year', output_field=IntegerField())))
 
-        with self.assertRaisesMessage(AssertionError, "'name' isn't a DateField, TimeField, or DateTimeField."):
+        with self.assertRaisesMessage(TypeError, "'name' isn't a DateField, TimeField, or DateTimeField."):
             list(DTModel.objects.annotate(truncated=Trunc('name', 'year', output_field=DateTimeField())))
 
         with self.assertRaisesMessage(ValueError, "Cannot truncate DateField 'start_date' to DateTimeField"):
