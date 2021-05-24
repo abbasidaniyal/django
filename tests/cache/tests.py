@@ -1697,6 +1697,23 @@ class FileBasedCacheTests(BaseCacheTests, TestCase):
             self.assertIs(cache._is_expired(fh), True)
 
 
+@override_settings(CACHES=caches_setting_for_tests(
+    BACKEND='django.core.cache.backends.redis.RedisCache',
+))
+class RedisCacheTests(BaseCacheTests, TestCase):
+
+    supports_get_with_default = False
+    incr_decr_type_error = ValueError
+
+    def test_default_used_when_none_is_set(self):
+        """
+        redis-py doesn't support default in get() so this test
+        overrides the one in BaseCacheTests.
+        """
+        cache.set('key_default_none', None)
+        self.assertEqual(cache.get('key_default_none', default='default'), 'default')
+
+
 class FileBasedCachePathLibTests(FileBasedCacheTests):
     def mkdtemp(self):
         tmp_dir = super().mkdtemp()

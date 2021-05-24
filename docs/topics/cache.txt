@@ -344,6 +344,13 @@ cross-process caching is possible. This also means the local memory cache isn't
 particularly memory-efficient, so it's probably not a good choice for
 production environments. It's nice for development.
 
+.. redis:
+
+Redis
+---------
+
+To be added
+
 Dummy caching (for development)
 -------------------------------
 
