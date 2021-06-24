@@ -1352,19 +1352,27 @@ class LocMemCacheTests(BaseCacheTests, TestCase):
         self.assertEqual(cache.get(9), 9)
 
 
-# memcached backend isn't guaranteed to be available.
-# To check the memcached backend, the test settings file will
+# memcached and redis backends aren't guaranteed to be available.
+# To check the backends, the test settings file will
 # need to contain at least one cache backend setting that points at
-# your memcache server.
+# your cache server.
 configured_caches = {}
 for _cache_params in settings.CACHES.values():
     configured_caches[_cache_params['BACKEND']] = _cache_params
 
+# memcached backend
 PyLibMCCache_params = configured_caches.get('django.core.cache.backends.memcached.PyLibMCCache')
 PyMemcacheCache_params = configured_caches.get('django.core.cache.backends.memcached.PyMemcacheCache')
 
 # The memcached backends don't support cull-related options like `MAX_ENTRIES`.
 memcached_excluded_caches = {'cull', 'zero_cull'}
+
+
+# redis backend
+RedisCache_params = configured_caches.get('django.core.cache.backends.redis.RedisCache')
+
+# The redis backend don't support cull-related options like `MAX_ENTRIES`.
+redis_excluded_caches = {'cull', 'zero_cull'}
 
 
 class BaseMemcachedTests(BaseCacheTests):
@@ -1697,21 +1705,13 @@ class FileBasedCacheTests(BaseCacheTests, TestCase):
             self.assertIs(cache._is_expired(fh), True)
 
 
+@unittest.skipUnless(RedisCache_params, "Redis backend not configured")
 @override_settings(CACHES=caches_setting_for_tests(
-    BACKEND='django.core.cache.backends.redis.RedisCache',
+    base=RedisCache_params,
+    exclude=redis_excluded_caches
 ))
 class RedisCacheTests(BaseCacheTests, TestCase):
-
-    supports_get_with_default = False
-    incr_decr_type_error = ValueError
-
-    def test_default_used_when_none_is_set(self):
-        """
-        redis-py doesn't support default in get() so this test
-        overrides the one in BaseCacheTests.
-        """
-        cache.set('key_default_none', None)
-        self.assertEqual(cache.get('key_default_none', default='default'), 'default')
+    pass
 
 
 class FileBasedCachePathLibTests(FileBasedCacheTests):

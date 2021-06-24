@@ -1,4 +1,4 @@
-"Redis cache backend"
+"""Redis cache backend."""
 
 import pickle
 import random
@@ -25,11 +25,11 @@ class PickleCacheSerializer(BaseCacheSerializer):
     def __init__(self, options):
         self._pickle_version = -1
 
-        if "PICKLE_VERSION" in options:
+        if 'PICKLE_VERSION' in options:
             try:
-                self._pickle_version = int(options["PICKLE_VERSION"])
+                self._pickle_version = int(options['PICKLE_VERSION'])
             except (ValueError, TypeError):
-                raise ImproperlyConfigured("must be an integer")
+                raise ImproperlyConfigured('must be an integer')
 
     def dumps(self, value):
         return pickle.dumps(value, self._pickle_version)
@@ -50,20 +50,20 @@ class RedisCacheClient:
 
         self._client_kwargs = {}
 
-        username = self._options.get("USERNAME", None)
+        username = self._options.get('USERNAME', None)
         if username:
-            self._client_kwargs["username"] = username
+            self._client_kwargs['username'] = username
 
-        password = self._options.get("PASSWORD", None)
+        password = self._options.get('PASSWORD', None)
         if password:
-            self._client_kwargs["password"] = password
+            self._client_kwargs['password'] = password
 
-        parser = self._options.get("PARSER", redis.connection.PythonParser)
+        parser = self._options.get('PARSER', redis.connection.PythonParser)
         if parser:
             if isinstance(parser, str):
                 parser = import_string(parser)
 
-            self._client_kwargs["parser_class"] = parser
+            self._client_kwargs['parser_class'] = parser
 
     def _get_connection_pool_index(self, write):
         if write or len(self._servers) == 1:
@@ -73,15 +73,15 @@ class RedisCacheClient:
     def _parse_url(self, url):
         parsed_url = urllib.parse.urlparse(url)
 
-        kwargs = {"host": parsed_url.hostname}
+        kwargs = {'host': parsed_url.hostname}
         if parsed_url.port:
-            kwargs["port"] = parsed_url.port
+            kwargs['port'] = parsed_url.port
 
         if parsed_url.username:
-            kwargs["username"] = parsed_url.username
+            kwargs['username'] = parsed_url.username
 
         if parsed_url.password:
-            kwargs["password"] = parsed_url.password
+            kwargs['password'] = parsed_url.password
 
         return kwargs
 
@@ -92,7 +92,7 @@ class RedisCacheClient:
         params.update(self._client_kwargs)
 
         if self._pools[index] is None:
-            if self._servers[index].startswith("unix:"):
+            if self._servers[index].startswith('unix'):
                 self._pools[index] = self._pool_class(
                     connection_class=redis.UnixDomainSocketConnection,
                     path=self._servers[index][5:],
@@ -103,17 +103,18 @@ class RedisCacheClient:
 
         return self._pools[index]
 
-    def get_client(self, key="", write=False):
+    def get_client(self, key='', write=False):
         pool = self._get_connection_pool(write)
         return self._client(connection_pool=pool)
 
-    def get(self, key):
+    def get(self, key, default):
         client = self.get_client(key)
         value = client.get(key)
         # If key does not exists, return None
         if value is None:
-            return value
-        return self._serializer.loads(value)
+            return default
+        else:
+            return self._serializer.loads(value)
 
     def add(self, key, value, timeout):
         client = self.get_client(key)
@@ -163,15 +164,15 @@ class RedisCache(BaseCache):
     def __init__(self, server, params):
         super().__init__(params)
         if isinstance(server, str):
-            self._servers = re.split("[;,]", server)
+            self._servers = re.split('[;,]', server)
         else:
             self._servers = server
 
-        self._options = params.get("OPTIONS") or {}
-        self._client_class = self._options.get("CLIENT", RedisCacheClient)
+        self._options = params.get('OPTIONS') or {}
+        self._class = self._options.get('CLIENT', RedisCacheClient)
 
-        if isinstance(self._client_class, str):
-            self._client_class = import_string(self._client_class)
+        if isinstance(self._class, str):
+            self._class = import_string(self._class)
 
     def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
         # Needs rethinking
@@ -188,46 +189,42 @@ class RedisCache(BaseCache):
         return int(timeout)
 
     @cached_property
-    def _caches(self):
-        return self._client_class(self._servers, self._options)
+    def _cache(self):
+        return self._class(self._servers, self._options)
 
     def get(self, key, default=None, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
-        value = self._caches.get(key)
-        if value is None:
-            return default
-        else:
-            return value
+        return self._cache.get(key, default)
 
     def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
-        self._caches.set(key, value, timeout=self.get_backend_timeout(timeout))
+        self._cache.set(key, value, self.get_backend_timeout(timeout))
 
     def add(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
-        return bool(self._caches.add(key, value, self.get_backend_timeout(timeout)))
+        return bool(self._cache.add(key, value, self.get_backend_timeout(timeout)))
 
     def touch(self, key, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
-        return bool(self._caches.touch(key, self.get_backend_timeout(timeout)))
+        return bool(self._cache.touch(key, self.get_backend_timeout(timeout)))
 
     def delete(self, key, version=None):
         key = self.make_key(key, version=version)
         self.validate_key(key)
-        return bool(self._caches.delete(key))
+        return bool(self._cache.delete(key))
 
     def clear(self):
-        return bool(self._caches.clear())
+        return bool(self._cache.clear())
 
     def get_many(self, keys, version=None):
         key_map = {self.make_key(key, version=version): key for key in keys}
         for key in key_map:
             self.validate_key(key)
-        ret = self._caches.get_many(key_map.keys())
+        ret = self._cache.get_many(key_map.keys())
         return {key_map[k]: v for k, v in ret.items()}
 
     def set_many(self, data, timeout=DEFAULT_TIMEOUT, version=None):
@@ -238,5 +235,5 @@ class RedisCache(BaseCache):
             self.validate_key(safe_key)
             safe_data[safe_key] = value
             original_keys[safe_key] = key
-        self._caches.set_many(safe_data, self.get_backend_timeout(timeout))
+        self._cache.set_many(safe_data, self.get_backend_timeout(timeout))
         return []
