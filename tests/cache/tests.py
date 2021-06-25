@@ -1353,22 +1353,18 @@ class LocMemCacheTests(BaseCacheTests, TestCase):
 
 
 # memcached and redis backends aren't guaranteed to be available.
-# To check the backends, the test settings file will
-# need to contain at least one cache backend setting that points at
-# your cache server.
+# To check the backends, the test settings file will need to contain at least
+# one cache backend setting that points at your cache server.
 configured_caches = {}
 for _cache_params in settings.CACHES.values():
     configured_caches[_cache_params['BACKEND']] = _cache_params
 
-# memcached backend
 PyLibMCCache_params = configured_caches.get('django.core.cache.backends.memcached.PyLibMCCache')
 PyMemcacheCache_params = configured_caches.get('django.core.cache.backends.memcached.PyMemcacheCache')
 
 # The memcached backends don't support cull-related options like `MAX_ENTRIES`.
 memcached_excluded_caches = {'cull', 'zero_cull'}
 
-
-# redis backend
 RedisCache_params = configured_caches.get('django.core.cache.backends.redis.RedisCache')
 
 # The redis backend don't support cull-related options like `MAX_ENTRIES`.
@@ -1708,7 +1704,7 @@ class FileBasedCacheTests(BaseCacheTests, TestCase):
 @unittest.skipUnless(RedisCache_params, "Redis backend not configured")
 @override_settings(CACHES=caches_setting_for_tests(
     base=RedisCache_params,
-    exclude=redis_excluded_caches
+    exclude=redis_excluded_caches,
 ))
 class RedisCacheTests(BaseCacheTests, TestCase):
     pass
