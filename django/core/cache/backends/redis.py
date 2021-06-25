@@ -5,22 +5,13 @@ import random
 import re
 import urllib
 
-import redis
-
 from django.core.cache.backends.base import DEFAULT_TIMEOUT, BaseCache
-from django.core.exceptions import ImproperlyConfigured
 from django.utils.functional import cached_property
 from django.utils.module_loading import import_string
 
 
 class PickleSerializer:
     def __init__(self, protocol):
-        if isinstance(protocol, str):
-            try:
-                protocol = int(protocol)
-            except (ValueError, TypeError):
-                raise ImproperlyConfigured('PICKLE_VERSION must be an integer')
-
         self._protocol = pickle.HIGHEST_PROTOCOL if protocol is None else protocol
 
     def dumps(self, value):
@@ -40,17 +31,19 @@ class RedisCacheClient:
         parser_class=None,
         pickle_protocol=None,
     ):
+        import redis
+        self._lib = redis
         self._servers = servers
         self._pools = [None] * len(servers)
 
-        self._pool_class = pool_class or redis.ConnectionPool
-        self._client = redis.Redis
+        self._pool_class = pool_class or self._lib.ConnectionPool
+        self._client = self._lib.Redis
         self._serializer = PickleSerializer(pickle_protocol)
 
         self._client_kwargs = {}
 
         if parser_class is None:
-            parser_class = redis.connection.PythonParser
+            parser_class = self._lib.connection.PythonParser
         elif isinstance(parser_class, str):
             parser_class = import_string(parser_class)
         self._client_kwargs = {'parser_class': parser_class}
@@ -78,6 +71,8 @@ class RedisCacheClient:
         if parsed_url.password:
             kwargs['password'] = parsed_url.password
 
+        kwargs.update(urllib.parse.parse_qsl(parsed_url.query))
+
         return kwargs
 
     def _get_connection_pool(self, write):
@@ -89,7 +84,7 @@ class RedisCacheClient:
         if self._pools[index] is None:
             if self._servers[index].startswith('unix'):
                 self._pools[index] = self._pool_class(
-                    connection_class=redis.UnixDomainSocketConnection,
+                    connection_class=self._lib.UnixDomainSocketConnection,
                     path=self._servers[index][5:],
                     **self._client_kwargs
                 )
@@ -98,7 +93,7 @@ class RedisCacheClient:
 
         return self._pools[index]
 
-    def get_client(self, key=None, write=False):
+    def get_client(self, key=None, *, write=False):
         pool = self._get_connection_pool(write)
         return self._client(connection_pool=pool)
 
@@ -106,13 +101,12 @@ class RedisCacheClient:
         client = self.get_client(key, write=True)
         value = self._serializer.dumps(value)
 
-        if timeout is None or timeout > 0:
-            return bool(client.set(key, value, ex=timeout, nx=True))
+        if timeout == 0:
+            if ret := bool(client.set(key, value, nx=True)):
+                client.delete(key)
+            return ret
         else:
-            result = bool(client.set(key, value, nx=True))
-            if result:
-                client.expire(key, timeout)
-        return result
+            return bool(client.set(key, value, ex=timeout, nx=True))
 
     def get(self, key, default):
         client = self.get_client(key)
@@ -122,18 +116,17 @@ class RedisCacheClient:
     def set(self, key, value, timeout):
         client = self.get_client(key, write=True)
         value = self._serializer.dumps(value)
-        if timeout is None or timeout > 0:
-            client.set(key, value, ex=timeout)
+        if timeout == 0:
+            client.delete(key)
         else:
-            client.set(key, value)
-            client.expire(key, timeout)
+            client.set(key, value, ex=timeout)
 
     def touch(self, key, timeout):
         client = self.get_client(key, write=True)
         if timeout is None:
-            return client.persist(key)
+            return bool(client.persist(key))
         else:
-            return client.expire(key, timeout)
+            return bool(client.expire(key, timeout))
 
     def delete(self, key):
         client = self.get_client(key, write=True)
@@ -148,17 +141,19 @@ class RedisCacheClient:
 
     def set_many(self, data, timeout):
         client = self.get_client(None, write=True)
-        client.mset({k: self._serializer.dumps(v) for k, v in data.items()})
+        pipeline = client.pipeline()
+        pipeline.mset({k: self._serializer.dumps(v) for k, v in data.items()})
 
-        for key in data:
+        if timeout is not None:
             # Setting timeout for each key as redis-py does not support timeout
             # with mset
-            if timeout is not None:
-                client.expire(key, timeout)
+            for key in data:
+                pipeline.expire(key, timeout)
+        pipeline.execute()
 
     def clear(self):
         client = self.get_client(None, write=True)
-        return client.flushall()
+        return bool(client.flushdb())
 
 
 class RedisCache(BaseCache):
@@ -178,7 +173,7 @@ class RedisCache(BaseCache):
 
         # The key will be made persistent if None used as a timeout.
         # Non-positive values will cause the key to be deleted.
-        return None if timeout is None else int(timeout)
+        return None if timeout is None else max(0, int(timeout))
 
     @cached_property
     def _cache(self):

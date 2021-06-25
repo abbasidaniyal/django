@@ -172,11 +172,9 @@ particularly temporary.
 .. redis:
 
 Redis
----------
+-----
 
-Redis is the most used caching backend according to the developers survey.
-...
-...
+TBD
 
 After setting up the redis server, you'll need to install Redis bindings.
 `redis-py`_ is the Python binding for Redis supported by Django.
