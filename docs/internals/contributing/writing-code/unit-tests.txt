@@ -285,6 +285,7 @@ dependencies:
 *  PyYAML_
 *  pytz_ (required)
 *  pywatchman_
+*  redis_
 *  setuptools_
 *  memcached_, plus a :ref:`supported Python binding <memcached>`
 *  gettext_ (:ref:`gettext_on_windows`)
@@ -332,6 +333,7 @@ service.
 .. _PyYAML: https://pyyaml.org/wiki/PyYAML
 .. _pytz: https://pypi.org/project/pytz/
 .. _pywatchman: https://pypi.org/project/pywatchman/
+.. _redis: https://pypi.org/project/redis/
 .. _setuptools: https://pypi.org/project/setuptools/
 .. _memcached: https://memcached.org/
 .. _gettext: https://www.gnu.org/software/gettext/manual/gettext.html

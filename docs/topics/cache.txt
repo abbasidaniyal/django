@@ -169,6 +169,40 @@ particularly temporary.
     some problems and seems to be unmaintained. Use ``PyMemcacheCache`` or
     ``PyLibMCCache`` instead.
 
+.. redis:
+
+Redis
+---------
+
+Redis is the most used caching backend according to the developers survey.
+...
+...
+
+After setting up the redis server, you'll need to install Redis bindings.
+`redis-py`_ is the Python binding for Redis supported by Django.
+
+.. _`redis-py`: https://pypi.org/project/redis/
+
+To use Redis as your cache backend with Django:
+
+* Set :setting:`BACKEND <CACHES-BACKEND>` to
+  ``django.core.cache.backends.redis.RedisCache``
+
+* Set :setting:`LOCATION <CACHES-LOCATION>` to ``ip:port`` values,
+  where ``ip`` is the IP address of the Redis daemon and ``port`` is the
+  port on which Redis is running, or to a ``unix:path`` value, where
+  ``path`` is the path to a Redis Unix socket file.
+
+For example, Redis is running on localhost (127.0.0.1) port 6379::
+
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': '127.0.0.1:6379',
+        }
+    }
+
+
 .. _database-caching:
 
 Database caching
@@ -343,13 +377,6 @@ Note that each process will have its own private cache instance, which means no
 cross-process caching is possible. This also means the local memory cache isn't
 particularly memory-efficient, so it's probably not a good choice for
 production environments. It's nice for development.
-
-.. redis:
-
-Redis
----------
-
-To be added
 
 Dummy caching (for development)
 -------------------------------
