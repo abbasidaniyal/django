@@ -139,17 +139,25 @@ class RedisCacheClient:
             k: self._serializer.loads(v) for k, v in zip(keys, ret) if v is not None
         }
 
+    def has_key(self, key):
+        client = self.get_client(key, write=True)
+        return bool(client.exists(key))
+
     def set_many(self, data, timeout):
         client = self.get_client(None, write=True)
         pipeline = client.pipeline()
         pipeline.mset({k: self._serializer.dumps(v) for k, v in data.items()})
 
         if timeout is not None:
-            # Setting timeout for each key as redis-py does not support timeout
+            # Setting timeout for each key as redis does not support timeout
             # with mset
             for key in data:
                 pipeline.expire(key, timeout)
         pipeline.execute()
+
+    def delete_many(self, keys):
+        client = self.get_client(None, write=True)
+        client.delete(*keys)
 
     def clear(self):
         client = self.get_client(None, write=True)
@@ -167,6 +175,10 @@ class RedisCache(BaseCache):
         self._class = RedisCacheClient
         self._options = params.get('OPTIONS') or {}
 
+    @cached_property
+    def _cache(self):
+        return self._class(self._servers, **self._options)
+
     def get_backend_timeout(self, timeout=DEFAULT_TIMEOUT):
         if timeout == DEFAULT_TIMEOUT:
             timeout = self.default_timeout
@@ -174,10 +186,6 @@ class RedisCache(BaseCache):
         # The key will be made persistent if None used as a timeout.
         # Non-positive values will cause the key to be deleted.
         return None if timeout is None else max(0, int(timeout))
-
-    @cached_property
-    def _cache(self):
-        return self._class(self._servers, **self._options)
 
     def add(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
@@ -211,6 +219,11 @@ class RedisCache(BaseCache):
         ret = self._cache.get_many(key_map.keys())
         return {key_map[k]: v for k, v in ret.items()}
 
+    def has_key(self, key, version=None):
+        key = self.make_key(key, version=version)
+        self.validate_key(key)
+        return self._cache.has_key(key)
+
     def set_many(self, data, timeout=DEFAULT_TIMEOUT, version=None):
         safe_data = {}
         original_keys = {}
@@ -221,6 +234,14 @@ class RedisCache(BaseCache):
             original_keys[safe_key] = key
         self._cache.set_many(safe_data, self.get_backend_timeout(timeout))
         return []
+
+    def delete_many(self, keys, version=None):
+        safe_keys = []
+        for key in keys:
+            safe_key = self.make_key(key, version=version)
+            self.validate_key(safe_key)
+            safe_keys.append(safe_key)
+        self._cache.delete_many(safe_keys)
 
     def clear(self):
         return bool(self._cache.clear())
