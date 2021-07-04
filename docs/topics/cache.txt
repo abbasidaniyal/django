@@ -174,10 +174,14 @@ particularly temporary.
 Redis
 -----
 
-TBD
+Redis__ is the most popular cache backend used with Django. It is an in-memory
+database which stores key-value pairs. Redis server can be configured to run
+as a daemon either on the local machine or on a remote instance. 
 
-After setting up the redis server, you'll need to install Redis bindings.
-`redis-py`_ is the Python binding for Redis supported by Django.
+__ https://redis.io/
+
+After setting up the redis server, you'll need to install Redis bindings for
+python. `redis-py`_ is the binding supported natively by Django.
 
 .. _`redis-py`: https://pypi.org/project/redis/
 
@@ -187,7 +191,7 @@ To use Redis as your cache backend with Django:
   ``django.core.cache.backends.redis.RedisCache``
 
 * Set :setting:`LOCATION <CACHES-LOCATION>` to ``ip:port`` values,
-  where ``ip`` is the IP address of the Redis daemon and ``port`` is the
+  where ``ip`` is the IP address of the Redis server and ``port`` is the
   port on which Redis is running, or to a ``unix:path`` value, where
   ``path`` is the path to a Redis Unix socket file.
 
@@ -199,7 +203,6 @@ For example, Redis is running on localhost (127.0.0.1) port 6379::
             'LOCATION': '127.0.0.1:6379',
         }
     }
-
 
 .. _database-caching:
 
